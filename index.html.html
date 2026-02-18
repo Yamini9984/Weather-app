@@ -1,20 +1,203 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Weather App</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Weather App</title>
+
+<style>
+body{
+  font-family: Arial;
+  margin:0;
+  background:#2196f3;
+  transition:0.5s;
+}
+
+.container{
+  max-width:360px;
+  margin:40px auto;
+  background:white;
+  padding:20px;
+  border-radius:10px;
+  text-align:center;
+}
+
+input{
+  width:70%;
+  padding:8px;
+}
+
+button{
+  padding:8px;
+  margin:5px;
+  cursor:pointer;
+}
+
+#result img{
+  width:80px;
+}
+
+#forecast{
+  display:grid;
+  grid-template-columns:repeat(5,1fr);
+  gap:5px;
+  margin-top:10px;
+}
+
+.day{
+  background:#eee;
+  padding:5px;
+  border-radius:5px;
+  font-size:12px;
+}
+
+.spinner{
+  width:40px;
+  height:40px;
+  border:4px solid #ddd;
+  border-top:4px solid #2196f3;
+  border-radius:50%;
+  margin:10px auto;
+  animation:spin 1s linear infinite;
+}
+
+@keyframes spin{
+  100%{transform:rotate(360deg);}
+}
+
+.hidden{display:none;}
+
+.dark{
+  background:#111;
+  color:white;
+}
+
+.dark .container{
+  background:#222;
+}
+
+.sunny{background:linear-gradient(#4facfe,#00f2fe);}
+.cloudy{background:linear-gradient(#bdc3c7,#2c3e50);}
+.rainy{background:linear-gradient(#616161,#9bc5c3);}
+
+@media(max-width:600px){
+  .container{width:95%;}
+  #forecast{grid-template-columns:repeat(2,1fr);}
+}
+</style>
 </head>
-<link rel="stylesheet" href="weather.css">
+
 <body>
-    <div class="container">
+
+<div class="container">
 <h2>Weather App</h2>
 
 <input type="text" id="city" placeholder="Enter city">
 <button onclick="getWeather()">Search</button>
+<br>
+
+<button onclick="getLocation()">Use My Location</button>
+<button onclick="toggleTemp()">°C / °F</button>
+<button onclick="toggleMode()">Dark / Light</button>
+
+<div id="spinner" class="spinner hidden"></div>
 
 <div id="result"></div>
+<div id="forecast"></div>
 </div>
+
+<script>
+const apiKey="9e8fa3f6dae664c33509f1e83e741eeb";
+let isC=true;
+
+/* restore theme */
+if(localStorage.getItem("theme")==="dark"){
+ document.body.classList.add("dark");
+}
+
+function showSpinner(show){
+ document.getElementById("spinner").classList.toggle("hidden",!show);
+}
+
+function getWeather(){
+ let city=document.getElementById("city").value;
+ if(city===""){ alert("Enter city"); return; }
+
+ showSpinner(true);
+
+ fetch(`https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}&units=metric`)
+ .then(r=>r.json())
+ .then(d=>{
+  showSpinner(false);
+  if(d.cod!=200){ result.innerHTML="City not found"; return; }
+  displayWeather(d);
+  loadForecast(city);
+ });
+}
+
+function getLocation(){
+ navigator.geolocation.getCurrentPosition(pos=>{
+  showSpinner(true);
+  fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&appid=${apiKey}&units=metric`)
+  .then(r=>r.json())
+  .then(d=>{
+   showSpinner(false);
+   displayWeather(d);
+  });
+ });
+}
+
+function displayWeather(d){
+ applyBackground(d.weather[0].main);
+ result.innerHTML=`
+  <h3>${d.name}</h3>
+  <img src="https://openweathermap.org/img/wn/${d.weather[0].icon}@2x.png">
+  <p id="temp">${d.main.temp} °C</p>
+  <p>${d.weather[0].main}</p>
+  <p>Humidity: ${d.main.humidity}%</p>
+ `;
+}
+
+function loadForecast(city){
+ fetch(`https://api.openweathermap.org/data/2.5/forecast?q=${city}&appid=${apiKey}&units=metric`)
+ .then(r=>r.json())
+ .then(f=>{
+  forecast.innerHTML="";
+  for(let i=7;i<40;i+=8){
+   forecast.innerHTML+=`
+    <div class="day">
+     ${f.list[i].dt_txt.slice(5,10)}<br>
+     ${f.list[i].main.temp}°C
+    </div>`;
+  }
+ });
+}
+
+function toggleTemp(){
+ let t=document.getElementById("temp");
+ if(!t)return;
+ let v=parseFloat(t.innerHTML);
+ if(isC){
+  t.innerHTML=((v*9/5)+32).toFixed(1)+" °F";
+ }else{
+  t.innerHTML=((v-32)*5/9).toFixed(1)+" °C";
+ }
+ isC=!isC;
+}
+
+function toggleMode(){
+ document.body.classList.toggle("dark");
+ localStorage.setItem("theme",
+  document.body.classList.contains("dark")?"dark":"light");
+}
+
+function applyBackground(type){
+ document.body.classList.remove("sunny","cloudy","rainy");
+ if(type.includes("Clear")) document.body.classList.add("sunny");
+ else if(type.includes("Cloud")) document.body.classList.add("cloudy");
+ else document.body.classList.add("rainy");
+}
+</script>
+
 </body>
-<script src="weather.js"></script>
 </html>
